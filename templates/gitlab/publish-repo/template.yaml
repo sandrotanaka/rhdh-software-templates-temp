@@ -1,0 +1,59 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: publish-gitlab-repo
+  title: Publish workspace contents to GitLab
+  description: Initializes a git repository of contents in workspace and publishes it to GitLab (via gitlab.cee.redhat.com)
+  tags:
+  - gitlab
+
+spec:
+  type: service
+  parameters:
+    - title: Label information
+      required: ['repoUrl']
+      properties:
+        repoUrl:
+          title: Repository URL
+          type: string
+          description: URL of the repository location
+          ui:field: RepoUrlPicker
+          ui:options:
+            allowedHosts:
+              - gitlab.cee.redhat.com
+            requestUserCredentials:
+              secretsKey: USER_OAUTH_TOKEN
+              additionalScopes:
+                gitlab:
+                  - api
+                  - read_repository
+                  - write_repository
+        token:
+          title: Authentication Token
+          type: string
+          ui:field: Secret
+          description: The GITLAB_TOKEN to use for authorization to GitLab
+
+  steps:
+    - id: fetchFile
+      name: fetch test file
+      action: fetch:plain:file
+      input:
+        url: https://github.com/redhat-developer/red-hat-developer-hub-software-templates/blob/main/README.md
+        targetPath: target-path
+    - id: publishRepo
+      name: Publish workspace contents to GitLab
+      action: publish:gitlab
+      input:
+        repoUrl: ${{ parameters.repoUrl }}
+        token: ${{ secrets.token }}
+
+  output:
+    links:
+      - title: URL to the repository with the provider
+        url: ${{ steps.publishRepo.output.remoteUrl }}
+      - title: URL to the root of the repository
+        url: ${{ steps.publishRepo.output.repoContentsUrl }}
+    text:
+      - title: The git commit hash of the initial commit
+        content: ${{ steps.publishRepo.output.commitHash }}
