@@ -88,7 +88,7 @@ spec:
     
     - id: publish
       name: Publishing to the Source Code Repository
-      action: publish:azure
+      action: publish:azureDevOps
       input:
         allowedHosts: ['dev.azure.com']
         description: ${{ parameters.description }}
