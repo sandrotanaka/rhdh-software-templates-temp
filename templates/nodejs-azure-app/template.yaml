@@ -3,50 +3,57 @@ kind: Template
 metadata:
   name: nodejs-azure-app
   title: Create a Node.js web application in Azure DevOps
-  description: Create a starter Node.js application and deploy it to Azure
+  description: Create a starter Node.js application and publish it to Azure DevOps
   tags:
-    - recommended
     - nodejs
-    - javascript
+    - azure
+    - azure-devops
     - express
+
 spec:
-  owner: janus-authors
-  system: janus-idp
+  owner: user:guest
   type: service
 
   parameters:
-    - title: Choose a location
+    - title: Azure DevOps
       required:
         - orgName
         - projectName
         - repoName
       properties:
         orgName:
-          title: Organisation
+          title: Organization
           type: string
-          description: The Organization that this repo will belong to
+          description: Azure DevOps organization
+          default: sua-organizacao
+
         projectName:
           title: Project
           type: string
-          description: The Project that this repo will belong to
+          description: Azure DevOps project
+          default: seu-projeto
+
         repoName:
           title: Repository
           type: string
-          description: The name of the repository
-    - title: Provide information about the new component
+          description: Repository name
+          pattern: '^[a-zA-Z0-9._-]+$'
+
+    - title: Component metadata
       required:
         - owner
         - system
-        - port
       properties:
         title:
           title: Title
           type: string
-          description: The title of the component
+          description: Component title
+
         description:
           title: Description
           type: string
-          description: Help others understand what this component is for
+          description: Component description
+
         owner:
           title: Owner
           type: string
@@ -56,6 +63,7 @@ spec:
               kind:
                 - Group
                 - User
+
         system:
           title: System
           type: string
@@ -64,19 +72,21 @@ spec:
             catalogFilter:
               kind:
                 - System
+
         port:
           title: Port
           type: number
           default: 3000
-          description: Override the port exposed for the application
+
   steps:
-    - id: sourceCodeTemplate
-      name: Generating the Source Code Component
+    - id: fetch-base
+      name: Generate project files
       action: fetch:template
       input:
         url: ./skeleton
         values:
-          orgName: ${{ parameters.projectName }}
+          orgName: ${{ parameters.orgName }}
+          projectName: ${{ parameters.projectName }}
           repoName: ${{ parameters.repoName }}
           owner: ${{ parameters.owner }}
           system: ${{ parameters.system }}
@@ -85,17 +95,27 @@ spec:
           port: ${{ parameters.port }}
           applicationType: website
           sourceControl: dev.azure.com
-    
+
     - id: publish
-      name: Publishing to the Source Code Repository
-      action: publish:azureDevOps
+      name: Publish to Azure DevOps
+      action: publish:azure
       input:
-        allowedHosts: ['dev.azure.com']
+        allowedHosts:
+          - dev.azure.com
+        repoUrl: dev.azure.com?organization=${{ parameters.orgName }}&project=${{ parameters.projectName }}&repo=${{ parameters.repoName }}
         description: ${{ parameters.description }}
-        repoUrl: dev.azure.com?owner=${{ parameters.projectName }}&repo=${{ parameters.repoName }}&organization=${{ parameters.orgName }}
         defaultBranch: main
+
+    - id: register
+      name: Register in catalog
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps.publish.output.repoContentsUrl }}
+        catalogInfoPath: /catalog-info.yaml
 
   output:
     links:
-      - title: Open the Source Code Repository
+      - title: Repository
         url: ${{ steps.publish.output.remoteUrl }}
+      - title: Open in catalog
+        entityRef: ${{ steps.register.output.entityRef }}
